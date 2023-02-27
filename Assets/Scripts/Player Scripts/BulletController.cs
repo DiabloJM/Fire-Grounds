@@ -5,7 +5,8 @@ using UnityEngine;
 public class BulletController : MonoBehaviour
 {
     //Public Variables
-    public Vector2 bulletDirection;
+    public float damage;
+    public Vector2 direction = new Vector2(0.0f, 0.0f);
 
     //Private Variables
     private Rigidbody2D RB;
@@ -17,20 +18,19 @@ public class BulletController : MonoBehaviour
 
     private void Update()
     {
-        RB.velocity = bulletDirection;
+        RB.velocity = direction;
     }
-
-    private void OnTriggerEnter2D(Collider2D other)
+    private void OnCollisionEnter2D(Collision2D other)
     {
-        if(other.tag == "Limit")
+        if(other.gameObject.tag == "Limit")
         {
-            Destroy(this);
+            Destroy(gameObject);
         }
 
-        if(other.tag == "Enemy")
+        if(other.gameObject.tag == "Enemy")
         {
-            //Damage enemy function
-            Destroy(this);
+            other.gameObject.GetComponent<Enemy_Movement>().TakeDamage(damage);
+            Destroy(gameObject);
         }
     }
 }

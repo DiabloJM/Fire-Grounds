@@ -1,138 +1,162 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PlayerController : MonoBehaviour
 {
     //Public Variables
     [Header("Properties")]
-    public int health;
+    public int health = 50;
+    public int maxHealth = 50;
     public float speed;
+
+    [Header("UI Text")]
+    public Text healthText;
+
+    [Header("Joysticks")]
+    public Joystick movementJoystick;
+    public Joystick aimingJoystick;
 
     [Header("Bullet Properties")]
     public Transform[] bulletSpawns;
     public GameObject bullet;
     public float bulletSpeed;
+    public float bulletRecoil;
+    public float bulletDamage = 1.0f;
+    public float damageMultiplayer = 1.0f;
 
     //Private Variables
-    private int maxHealth;
-    [SerializeField] private SpriteRenderer spriteRenderer;
-    [SerializeField] private Rigidbody2D RB;
-    [SerializeField] private Animator animator;
+    private SpriteRenderer spriteRenderer;
+    private Rigidbody2D RB;
+    private Animator animator;
 
-    [SerializeField] private float moveHorizontal;
-    [SerializeField] private float moveVertical; 
+    private float moveHorizontal;
+    private float moveVertical;
+
+    private float aimHorizontal;
+    private float aimVertical;
+
+    private float timer;
+
+    private Transform bulletActualSpawn;
+    private Vector2 direction;
+
     private void Awake()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
         RB = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
+        timer = bulletRecoil;
+        bulletActualSpawn = bulletSpawns[2];
+        healthText.text = health.ToString();
+        direction = new Vector2(1.0f, 0.0f);
     }
 
     private void Update()
     {
-        moveHorizontal = Input.GetAxisRaw("Horizontal");
-        moveVertical = Input.GetAxisRaw("Vertical");
+        moveHorizontal = movementJoystick.Horizontal * speed;
+        moveVertical = movementJoystick.Vertical * speed;
+   
+        aimHorizontal = aimingJoystick.Horizontal;
+        aimVertical = aimingJoystick.Vertical;
 
-        //Going left or right
-        if(moveHorizontal != 0.0f && moveVertical == 0.0f)
+        if (aimVertical < 0.3f && aimVertical > -0.3f)
         {
             animator.SetBool("lookingRorL", true);
             animator.SetBool("lookingUp", false);
             animator.SetBool("lookingDown", false);
 
-            if (moveHorizontal > 0.0f)
-            { //Going right
+            if (aimHorizontal >= 0.0f)
+            {
+                //Shoot Right
                 spriteRenderer.flipX = false;
+                bulletActualSpawn = bulletSpawns[2];
+                direction = new Vector2(1.0f * bulletSpeed, 0.0f);
             }
-
-            if(moveHorizontal < 0.0f)
-            { //Going left
+            else
+            {
+                //Shoot Left
                 spriteRenderer.flipX = true;
+                bulletActualSpawn = bulletSpawns[6];
+                direction = new Vector2(-1.0f * bulletSpeed, 0.0f);
+            }
+        }
+        else if (aimVertical >= 0.3f)
+        {
+            animator.SetBool("lookingUp", true);
+            animator.SetBool("lookingDown", false);
+            spriteRenderer.flipX = false;
+
+            if (aimHorizontal < 0.3f && aimHorizontal > -0.3f)
+            {
+                //Shoot Up
+                animator.SetBool("lookingRorL", false);
+                bulletActualSpawn = bulletSpawns[0];
+                direction = new Vector2(0.0f, 1.0f * bulletSpeed);
+            }
+            else if (aimHorizontal >= 0.3f)
+            {
+                //Shoot Top Right
+                animator.SetBool("lookingRorL", true);
+                bulletActualSpawn = bulletSpawns[1];
+                direction = new Vector2(1.0f * bulletSpeed, 1.0f * bulletSpeed);
+            }
+            else
+            {
+                //Shoot Top Left
+                animator.SetBool("lookingRorL", true);
+                spriteRenderer.flipX = true;
+                bulletActualSpawn = bulletSpawns[7];
+                direction = new Vector2(-1.0f * bulletSpeed, 1.0f * bulletSpeed);
+            }
+        }
+        else
+        {
+            animator.SetBool("lookingUp", false);
+            animator.SetBool("lookingDown", true);
+            spriteRenderer.flipX = false;
+
+            if (aimHorizontal < 0.3f && aimHorizontal > -0.3f)
+            {
+                //Shoot Down
+                animator.SetBool("lookingRorL", false);
+                bulletActualSpawn = bulletSpawns[4];
+                direction = new Vector2(0.0f, -1.0f * bulletSpeed);
+            }
+            else if (aimHorizontal >= 0.3f)
+            {
+                //Shoot Low Right
+                animator.SetBool("lookingRorL", true);
+                bulletActualSpawn = bulletSpawns[3];
+                direction = new Vector2(1.0f * bulletSpeed, -1.0f * bulletSpeed);
+            }
+            else
+            {
+                //Shoot Low Left
+                animator.SetBool("lookingRorL", true);
+                spriteRenderer.flipX = true;
+                bulletActualSpawn = bulletSpawns[5];
+                direction = new Vector2(-1.0f * bulletSpeed, -1.0f * bulletSpeed);
             }
         }
 
-        //Going Up
-        if(moveHorizontal == 0.0f && moveVertical > 0.0f)
-        {
-            animator.SetBool("lookingRorL", false);
-            animator.SetBool("lookingUp", true);
-            animator.SetBool("lookingDown", false);
-            spriteRenderer.flipX = false;
-        }
+        timer -= Time.deltaTime;
 
-        //Going Down
-        if (moveHorizontal == 0.0f && moveVertical < 0.0f)
+        if(timer <= 0.0f)
         {
-            animator.SetBool("lookingRorL", false);
-            animator.SetBool("lookingUp", false);
-            animator.SetBool("lookingDown", true);
-            spriteRenderer.flipX = false;
+            GameObject bulletInstatiated = Instantiate(bullet, bulletActualSpawn.position, Quaternion.identity);
+            bulletInstatiated.GetComponent<BulletController>().direction = direction;
+            bulletInstatiated.GetComponent<BulletController>().damage = bulletDamage * damageMultiplayer;
+            timer = bulletRecoil;
         }
-
-        //Going right/up
-        if (moveHorizontal > 0.0f && moveVertical > 0.0f)
-        {
-            animator.SetBool("lookingRorL", true);
-            animator.SetBool("lookingUp", true);
-            animator.SetBool("lookingDown", false);
-            spriteRenderer.flipX = false;
-        }
-
-        //Going right/down
-        if (moveHorizontal > 0.0f && moveVertical < 0.0f)
-        {
-            animator.SetBool("lookingRorL", true);
-            animator.SetBool("lookingUp", false);
-            animator.SetBool("lookingDown", true);
-            spriteRenderer.flipX = false;
-        }
-
-        //Going left/up
-        if (moveHorizontal < 0.0f && moveVertical > 0.0f)
-        {
-            animator.SetBool("lookingRorL", true);
-            animator.SetBool("lookingUp", true);
-            animator.SetBool("lookingDown", false);
-            spriteRenderer.flipX = true;
-        }
-
-        //Going left/down
-        if (moveHorizontal < 0.0f && moveVertical < 0.0f)
-        {
-            animator.SetBool("lookingRorL", true);
-            animator.SetBool("lookingUp", false);
-            animator.SetBool("lookingDown", true);
-            spriteRenderer.flipX = true;
-        }
-
-        //Not moving
-        if(moveHorizontal == 0.0f && moveVertical == 0.0f)
-        {
-            animator.SetBool("lookingRorL", false);
-            animator.SetBool("lookingUp", false);
-            animator.SetBool("lookingDown", false);
-        }
+        
+        Input.ResetInputAxes();
     }
 
     private void FixedUpdate()
     {
-        RB.velocity = new Vector2(moveHorizontal * speed, moveVertical * speed);
-    }
-
-    public void FullHealPlayer()
-    {
-        health = maxHealth;
-    }
-
-    public void HealPlayer(int _heal)
-    {
-        health += _heal;
-
-        if(health > maxHealth)
-        {
-            health = maxHealth;
-        }
+        RB.velocity = new Vector2(moveHorizontal, moveVertical);
     }
 
     public void TakeDamage(int _damage)
@@ -141,8 +165,14 @@ public class PlayerController : MonoBehaviour
 
         if(health <= 0)
         {
-            //Llamar a la funcion del GameMager para terminar la partida
-
+            FindObjectOfType<GameManager>().GameOver();
         }
+
+        healthText.text = health.ToString();
+    }
+
+    public void UpdateHealthText()
+    {
+        healthText.text = health.ToString();
     }
 }
